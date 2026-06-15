@@ -22,11 +22,13 @@ export default function PremiosClient({ sorteo, premios: premiosInit }) {
   const [premios, setPremios] = useState(premiosInit)
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setPremios(premiosInit) }, [premiosInit])
+  useEffect(() => { setMounted(true) }, [])
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
@@ -105,23 +107,39 @@ export default function PremiosClient({ sorteo, premios: premiosInit }) {
             </svg>
             Arrastra el handle para reordenar
           </p>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={premios.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {premios.map((p, i) => (
-                  <SortableCard
-                    key={p.id}
-                    premio={p}
-                    posicion={i + 1}
-                    onEdit={() => setModal(p)}
-                    onDelete={() => setDeleteTarget(p)}
-                    onToggleVisible={() => handleToggleVisible(p)}
-                    disabled={isPending}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          {mounted ? (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={premios.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {premios.map((p, i) => (
+                    <SortableCard
+                      key={p.id}
+                      premio={p}
+                      posicion={i + 1}
+                      onEdit={() => setModal(p)}
+                      onDelete={() => setDeleteTarget(p)}
+                      onToggleVisible={() => handleToggleVisible(p)}
+                      disabled={isPending}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <div className="space-y-2">
+              {premios.map((p, i) => (
+                <SortableCard
+                  key={p.id}
+                  premio={p}
+                  posicion={i + 1}
+                  onEdit={() => setModal(p)}
+                  onDelete={() => setDeleteTarget(p)}
+                  onToggleVisible={() => handleToggleVisible(p)}
+                  disabled={isPending}
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -189,7 +207,7 @@ function SortableCard({ premio, posicion, onEdit, onDelete, onToggleVisible, dis
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 'auto' }}
+      style={{ transform: CSS.Translate.toString(transform), transition, zIndex: isDragging ? 10 : 'auto' }}
       className={[
         'flex items-center gap-3 border border-gold/20 bg-surface px-3 py-3 transition-all duration-150',
         isDragging ? 'border-gold/50 opacity-90 shadow-2xl shadow-black/50' : 'hover:border-gold/40',

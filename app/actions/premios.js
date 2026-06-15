@@ -89,8 +89,11 @@ export async function togglePremioVisible(premioId, sorteoId, currentVisible) {
 
 export async function reordenarPremios(sorteoId, ordenIds) {
   const supabase = createAdminClient()
-  const rows = ordenIds.map((id, i) => ({ id, sorteo_id: sorteoId, orden: i + 1 }))
-  await supabase.from('premios').upsert(rows, { onConflict: 'id' })
+  await Promise.all(
+    ordenIds.map((id, i) =>
+      supabase.from('premios').update({ orden: i + 1 }).eq('id', id).eq('sorteo_id', sorteoId)
+    )
+  )
   revalidatePath(`/dashboard/sorteos/${sorteoId}/premios`)
   revalidatePath(`/sorteos/${sorteoId}`)
   revalidatePath('/')
