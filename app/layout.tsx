@@ -16,6 +16,7 @@ const bebasNeue = Bebas_Neue({
 export const metadata: Metadata = {
   title: "Bingos Pao",
   description: "Sorteos y bingos en vivo",
+  icons: { icon: "/favicon.webp" },
 };
 
 export default function RootLayout({
