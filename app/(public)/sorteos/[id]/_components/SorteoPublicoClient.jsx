@@ -4,6 +4,43 @@ import { motion } from 'framer-motion'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { registrarParticipante } from '@/app/actions/participantes'
 
+async function comprimirImagen(file, maxDimension = 1200, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDimension || height > maxDimension) {
+          if (width >= height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { reject(new Error('Canvas toBlob failed')); return }
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' }))
+          },
+          'image/webp',
+          quality
+        )
+      }
+      img.onerror = reject
+      img.src = e.target.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 const TIPO_LABEL = {
   sorteo: 'SORTEO', pozito: 'POZITO', especial: 'ESPECIAL', aniversario: 'ANIVERSARIO',
 }
@@ -254,24 +291,24 @@ function TerminosModal({ terminos, onClose }) {
 
 /* ── Formulario de registro ── */
 function RegistroForm({ sorteoId, terminos, onSuccess }) {
-  const [preview, setPreview]         = useState(null)
-  const [showTerminos, setShowTerminos] = useState(false)
-  const [dragOver, setDragOver]        = useState(false)
-  const [nombres, setNombres]          = useState('')
-  const [apellidos, setApellidos]      = useState('')
-  const [whatsapp, setWhatsapp]        = useState('')
-  const [aceptoTerminos, setAcepto]    = useState(false)
-  const [errors, setErrors]            = useState({})
-  const [isPending, startTransition]   = useTransition()
+  const [preview, setPreview]           = useState(null)
+  const [comprobanteFile, setComprobanteFile] = useState(null)
+  const [showTerminos, setShowTerminos]  = useState(false)
+  const [dragOver, setDragOver]          = useState(false)
+  const [nombres, setNombres]            = useState('')
+  const [apellidos, setApellidos]        = useState('')
+  const [whatsapp, setWhatsapp]          = useState('')
+  const [aceptoTerminos, setAcepto]      = useState(false)
+  const [errors, setErrors]              = useState({})
+  const [isPending, startTransition]     = useTransition()
   const formRef = useRef(null)
   const fileRef = useRef(null)
 
-  function handleFile(file) {
+  async function handleFile(file) {
     if (!file) return
-    setPreview(URL.createObjectURL(file))
-    const dt = new DataTransfer()
-    dt.items.add(file)
-    if (fileRef.current) fileRef.current.files = dt.files
+    const compressed = await comprimirImagen(file)
+    setPreview(URL.createObjectURL(compressed))
+    setComprobanteFile(compressed)
   }
 
   function submit(e) {
@@ -279,6 +316,11 @@ function RegistroForm({ sorteoId, terminos, onSuccess }) {
     setErrors({})
     const fd = new FormData(formRef.current)
     fd.set('terminos', String(aceptoTerminos))
+    if (comprobanteFile) {
+      fd.set('comprobante', comprobanteFile)
+    } else {
+      fd.delete('comprobante')
+    }
     startTransition(async () => {
       const result = await registrarParticipante(fd)
       if (result?.errors) {
