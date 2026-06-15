@@ -126,6 +126,14 @@ export async function toggleEstado(id) {
     redirect('/dashboard/sorteos?error=Este sorteo ya está cerrado y no puede cambiar de estado')
   }
 
+  if (nuevoEstado === 'cerrado') {
+    const { data: files } = await supabase.storage.from('comprobantes').list(String(id), { limit: 1000 })
+    if (files?.length) {
+      const filePaths = files.map((f) => `${id}/${f.name}`)
+      await supabase.storage.from('comprobantes').remove(filePaths)
+    }
+  }
+
   await supabase.from('sorteos').update({ estado: nuevoEstado }).eq('id', id)
 
   redirect(`/dashboard/sorteos?success=Estado actualizado a "${nuevoEstado}"`)

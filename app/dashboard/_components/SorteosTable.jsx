@@ -33,9 +33,25 @@ const TOGGLE_CLS   = {
 export default function SorteosTable({ sorteos }) {
   const [isPending, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [closeTarget, setCloseTarget]   = useState(null)
   const [actionId, setActionId] = useState(null)
 
-  function handleToggle(id) {
+  function handleToggle(id, estado, nombre) {
+    if (estado === 'activo') {
+      setCloseTarget({ id, nombre })
+      return
+    }
+    setActionId(id)
+    startTransition(async () => {
+      await toggleEstado(id)
+      setActionId(null)
+    })
+  }
+
+  function confirmClose() {
+    if (!closeTarget) return
+    const id = closeTarget.id
+    setCloseTarget(null)
     setActionId(id)
     startTransition(async () => {
       await toggleEstado(id)
@@ -107,7 +123,7 @@ export default function SorteosTable({ sorteos }) {
                     <button
                       type="button"
                       disabled={isPending}
-                      onClick={() => handleToggle(s.id)}
+                      onClick={() => handleToggle(s.id, s.estado, s.nombre)}
                       className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${TOGGLE_CLS[s.estado] ?? ''} disabled:opacity-50`}
                     >
                       {loading ? '...' : TOGGLE_LABEL[s.estado]}
@@ -141,6 +157,92 @@ export default function SorteosTable({ sorteos }) {
           )
         })}
       </div>
+
+      {/* Modal de confirmación de cierre */}
+      <AnimatePresence>
+        {closeTarget && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setCloseTarget(null)} />
+            <motion.div
+              className="relative w-full max-w-md rounded-2xl border border-gold/20 bg-surface shadow-2xl overflow-hidden"
+              initial={{ scale: 0.92, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+            >
+              {/* Franja superior */}
+              <div className="flex items-center gap-3 border-b border-gold/10 bg-surface2 px-6 py-4">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-400">
+                  <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">Cerrar sorteo</p>
+                  <p className="truncate text-sm font-semibold text-cream">{closeTarget.nombre}</p>
+                </div>
+              </div>
+
+              {/* Cuerpo */}
+              <div className="space-y-4 px-6 py-5">
+                <p className="text-sm leading-relaxed text-muted">
+                  Estás a punto de marcar este sorteo como finalizado. Antes de continuar, ten en cuenta lo siguiente:
+                </p>
+
+                {/* Lo que se elimina */}
+                <div className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3.5">
+                  <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-danger/80">
+                    <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                    Se va a limpiar
+                  </p>
+                  <p className="text-sm text-danger/70">
+                    Las <strong className="text-danger/90">fotos de los comprobantes de pago</strong> se borrarán del servidor para liberar espacio de almacenamiento.
+                  </p>
+                </div>
+
+                {/* Lo que se conserva */}
+                <div className="rounded-xl border border-success/20 bg-success/5 px-4 py-3.5">
+                  <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-success/80">
+                    <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Se conserva todo lo demás
+                  </p>
+                  <ul className="space-y-1 text-sm text-success/70">
+                    <li>Lista completa de participantes y sus datos</li>
+                    <li>Ganadores registrados</li>
+                    <li>Premios del sorteo</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex justify-end gap-3 border-t border-gold/10 px-6 py-4">
+                <button
+                  type="button"
+                  onClick={() => setCloseTarget(null)}
+                  className="rounded-lg border border-gold/20 px-4 py-2 text-sm text-muted transition hover:border-gold/40 hover:text-cream"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmClose}
+                  disabled={isPending}
+                  className="rounded-lg bg-amber-500 px-5 py-2 text-sm font-semibold text-bg transition hover:bg-amber-400 disabled:opacity-50"
+                >
+                  Sí, cerrar sorteo
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modal de confirmación de eliminación */}
       <AnimatePresence>
