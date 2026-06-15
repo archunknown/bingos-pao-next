@@ -420,7 +420,7 @@ function GanadoresSection({ ganadores }) {
       <div className="relative mx-auto max-w-5xl">
         <h2 className="mb-8 border-l-4 border-gold pl-5 font-display text-5xl text-cream">GANADORES RECIENTES</h2>
         <motion.div
-          className="flex flex-wrap gap-3"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
           variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06 } } }}
           initial="hidden" whileInView="visible" viewport={{ once: true }}
         >
@@ -428,15 +428,15 @@ function GanadoresSection({ ganadores }) {
             <motion.div
               key={g.id}
               variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } } }}
-              className="flex items-center gap-3 border border-gold/30 bg-surface px-4 py-3"
+              className="flex flex-col items-center gap-2 border border-gold/30 bg-surface p-3 text-center"
             >
-              <div className={`flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${g.avatarCls}`}>
+              <div className={`flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${g.avatarCls}`}>
                 {g.inicial}
               </div>
-              <div>
-                <p className="text-sm font-semibold text-cream">{g.nombre}</p>
-                <p className="text-xs font-bold text-gold">{g.premio}</p>
-                <p className="text-[11px] text-muted">{g.sorteo}</p>
+              <div className="w-full min-w-0">
+                <p className="truncate text-sm font-semibold text-cream">{g.nombre}</p>
+                <p className="truncate text-xs font-bold text-gold">{g.premio}</p>
+                <p className="truncate text-[10px] text-muted">{g.sorteo}</p>
               </div>
             </motion.div>
           ))}

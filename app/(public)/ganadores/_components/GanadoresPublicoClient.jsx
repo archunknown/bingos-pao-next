@@ -76,7 +76,7 @@ export default function GanadoresPublicoClient({ ganadores, sorteos, filtroSorte
         ) : (
           <motion.div
             key={String(filtroSorteoId ?? 'all')}
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4"
             variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.09 } } }}
             initial="hidden" animate="visible"
           >
@@ -96,51 +96,51 @@ export default function GanadoresPublicoClient({ ganadores, sorteos, filtroSorte
 function GanadorCard({ ganador }) {
   const { palette } = ganador
   return (
-    <div className="relative flex flex-col overflow-hidden border border-gold/20 bg-surface p-5 transition-colors hover:border-gold/50">
+    <div className="relative flex h-full flex-col overflow-hidden border border-gold/20 bg-surface p-3 transition-colors hover:border-gold/50 sm:p-5">
       {/* Cinta diagonal GANADOR */}
-      <div className="pointer-events-none absolute right-0 top-0 h-16 w-16 overflow-hidden">
-        <div className="absolute bg-gold text-center text-[7px] font-bold uppercase tracking-widest text-bg"
-          style={{ width: '80px', right: '-20px', top: '14px', transform: 'rotate(45deg)', padding: '2px 0' }}>
+      <div className="pointer-events-none absolute right-0 top-0 h-12 w-12 overflow-hidden sm:h-16 sm:w-16">
+        <div className="absolute bg-gold text-center font-bold uppercase tracking-widest text-bg"
+          style={{ fontSize: '6px', width: '64px', right: '-16px', top: '11px', transform: 'rotate(45deg)', padding: '2px 0' }}>
           GANADOR
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         <motion.div
-          className="flex size-11 shrink-0 items-center justify-center border border-gold/30 text-base font-bold"
+          className="flex size-9 shrink-0 items-center justify-center border border-gold/30 text-sm font-bold sm:size-11 sm:text-base"
           style={{ backgroundColor: palette.bg, color: palette.text }}
           whileHover={{ rotate: 5, scale: 1.1 }}
           transition={{ type: 'spring', stiffness: 300, damping: 15 }}
         >
           {ganador.inicial}
         </motion.div>
-        <div className="min-w-0 pr-8">
-          <p className="truncate font-semibold text-cream">{ganador.nombre}</p>
-          {ganador.sorteo && <p className="truncate text-xs text-muted">{ganador.sorteo}</p>}
+        <div className="min-w-0 pr-6 sm:pr-8">
+          <p className="truncate text-sm font-semibold text-cream sm:text-base">{ganador.nombre}</p>
+          {ganador.sorteo && <p className="truncate text-[11px] text-muted sm:text-xs">{ganador.sorteo}</p>}
         </div>
       </div>
 
-      <div className="my-4 h-px bg-gold/10" />
+      <div className="my-3 h-px bg-gold/10 sm:my-4" />
 
-      <div className="flex-1 space-y-2">
+      <div className="flex-1 space-y-1.5 sm:space-y-2">
         {ganador.monto != null && (
-          <p className="font-display text-2xl text-gold">S/ {Number(ganador.monto).toFixed(2)}</p>
+          <p className="font-display text-xl text-gold sm:text-2xl">S/ {Number(ganador.monto).toFixed(2)}</p>
         )}
-        <p className="text-sm text-cream">{ganador.premio}</p>
+        <p className="text-xs text-cream sm:text-sm">{ganador.premio}</p>
         {!ganador.monto && ganador.descripcion && (
-          <p className="text-xs text-muted">{ganador.descripcion}</p>
+          <p className="hidden text-xs text-muted sm:block">{ganador.descripcion}</p>
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-1.5 sm:mt-4 sm:gap-2">
         {ganador.tipo_sorteo && (
-          <span className="border border-gold/20 bg-gold/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gold">
+          <span className="border border-gold/20 bg-gold/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gold sm:px-2 sm:py-1 sm:text-[10px]">
             {ganador.tipo_sorteo}
           </span>
         )}
-        {ganador.fecha_sorteo && (
-          <span className="text-xs text-muted">
-            {new Date(ganador.fecha_sorteo).toLocaleDateString('es-PE', { dateStyle: 'medium' })}
+        {ganador.fecha_sorteo_fmt && (
+          <span className="text-[10px] text-muted sm:text-xs">
+            {ganador.fecha_sorteo_fmt}
           </span>
         )}
       </div>

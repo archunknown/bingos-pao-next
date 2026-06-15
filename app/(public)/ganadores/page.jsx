@@ -58,7 +58,9 @@ export default async function GanadoresPage({ searchParams }) {
       descripcion: g.premio?.descripcion_premio ?? null,
       sorteo: g.sorteo?.nombre ?? null,
       tipo_sorteo: g.sorteo?.tipo ?? null,
-      fecha_sorteo: g.sorteo?.fecha_sorteo ?? null,
+      fecha_sorteo_fmt: g.sorteo?.fecha_sorteo
+        ? new Date(g.sorteo.fecha_sorteo).toLocaleDateString('es-PE', { timeZone: 'America/Lima', dateStyle: 'medium' })
+        : null,
     }
   })
 
