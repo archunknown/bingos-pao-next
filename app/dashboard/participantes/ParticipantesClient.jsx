@@ -147,9 +147,7 @@ export default function ParticipantesClient({ sorteos, participantes, currentSor
                         {p.sorteos?.nombre ?? '—'}
                       </td>
                       <td className="hidden px-4 py-3 text-xs text-muted lg:table-cell">
-                        {new Date(p.created_at).toLocaleString('es-PE', {
-                          dateStyle: 'short', timeStyle: 'short',
-                        })}
+                        {p.created_at_fmt}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${badge?.cls ?? 'text-muted'}`}>

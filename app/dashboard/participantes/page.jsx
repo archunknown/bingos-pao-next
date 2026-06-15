@@ -19,12 +19,21 @@ export default async function ParticipantesPage({ searchParams }) {
 
   if (sorteo_id) query = query.eq('sorteo_id', sorteo_id)
 
-  const { data: participantes } = await query
+  const { data: raw } = await query
+
+  const fmt = new Intl.DateTimeFormat('es-PE', {
+    dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Lima',
+  })
+
+  const participantes = (raw ?? []).map((p) => ({
+    ...p,
+    created_at_fmt: fmt.format(new Date(p.created_at)),
+  }))
 
   return (
     <ParticipantesClient
       sorteos={sorteos ?? []}
-      participantes={participantes ?? []}
+      participantes={participantes}
       currentSorteoId={sorteo_id ?? ''}
       currentEstado={estado ?? ''}
     />
