@@ -2,7 +2,11 @@
 
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { registrarParticipante } from '@/app/actions/participantes'
+import { registrarParticipante, fetchDniParticipante } from '@/app/actions/participantes'
+
+function toTitleCase(str) {
+  return (str ?? '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
 
 async function comprimirImagen(file, maxDimension = 1200, quality = 0.7) {
   return new Promise((resolve, reject) => {
@@ -52,14 +56,6 @@ const PASOS = [
   { n: 4, texto: 'Espera la confirmación. Te avisaremos por WhatsApp y verás el resultado en vivo.' },
 ]
 
-function pluralizar(nombre) {
-  return nombre.split(' ').map(w => {
-    const lw = w.toLowerCase()
-    if (lw.endsWith('s')) return lw
-    if (/[aeiouáéíóú]$/i.test(lw)) return lw + 's'
-    return lw + 'es'
-  }).join(' ')
-}
 
 export default function SorteoPublicoClient({ sorteo, config }) {
   const countdown = useCountdown(sorteo.fecha_sorteo)
@@ -141,9 +137,11 @@ export default function SorteoPublicoClient({ sorteo, config }) {
                 <ul className="divide-y divide-gold/10">
                   {sorteo.premios.map(p => (
                     <li key={p.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
-                      <p className="text-sm text-cream">
-                        <span className="text-base font-bold text-gold">{p.cantidad}</span>
-                        {'  '}{p.cantidad > 1 ? pluralizar(p.nombre) : p.nombre}
+                      <p className="flex items-center gap-2 text-sm text-cream">
+                        {p.cantidad > 1 && (
+                          <span className="shrink-0 border border-gold/40 bg-gold/10 px-1.5 py-0.5 font-mono text-xs font-bold text-gold">×{p.cantidad}</span>
+                        )}
+                        {p.nombre}
                       </p>
                       {p.monto != null ? (
                         <span className="shrink-0 font-bold text-gold">S/ {Number(p.monto).toFixed(2)}</span>
@@ -178,10 +176,7 @@ export default function SorteoPublicoClient({ sorteo, config }) {
 
             <div>
               <h3 className="mb-3 font-display text-2xl text-cream">REALIZA TU PAGO</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <QrCard label="YAPE" imgUrl={config.qr_yape_url} titular={config.titular_pago} />
-                <QrCard label="PLIN" imgUrl={config.qr_plin_url} titular={config.titular_pago} />
-              </div>
+              <QrCard label="YAPE" imgUrl={config.qr_yape_url} titular={config.titular_pago} solo />
             </div>
 
             <div className="flex items-center gap-3 border-l-4 border-gold bg-gold/10 px-4 py-3">
@@ -192,7 +187,14 @@ export default function SorteoPublicoClient({ sorteo, config }) {
               <p className="text-sm text-cream">Toma captura de pantalla del pago antes de continuar</p>
             </div>
 
-            {enviado ? (
+            {/* Barra de cupos */}
+            {sorteo.limite_participantes != null && (
+              <CuposBar inscritos={sorteo.inscritos} limite={sorteo.limite_participantes} />
+            )}
+
+            {sorteo.cupo_lleno ? (
+              <CupoCompletoPanel whatsapp={config.whatsapp_contacto} />
+            ) : enviado ? (
               <SuccessState whatsapp={config.whatsapp_contacto} />
             ) : (
               <RegistroForm
@@ -209,14 +211,15 @@ export default function SorteoPublicoClient({ sorteo, config }) {
 }
 
 /* ── QR Card ── */
-function QrCard({ label, imgUrl, titular }) {
+function QrCard({ label, imgUrl, titular, solo }) {
+  const qrSize = solo ? 'h-44 w-44' : 'h-28 w-28'
   return (
-    <div className="flex flex-col items-center gap-3 border border-gold/30 bg-surface2 p-4 text-center">
-      <p className="font-display text-xl tracking-widest text-gold">{label}</p>
+    <div className={`flex flex-col items-center gap-3 border border-gold/30 bg-surface2 p-5 text-center ${solo ? 'mx-auto max-w-xs' : ''}`}>
+      <p className={`font-display tracking-widest text-gold ${solo ? 'text-2xl' : 'text-xl'}`}>{label}</p>
       {imgUrl ? (
-        <img src={imgUrl} alt={`QR ${label}`} className="h-28 w-28 border border-gold/20 object-contain" />
+        <img src={imgUrl} alt={`QR ${label}`} className={`${qrSize} border border-gold/20 object-contain`} />
       ) : (
-        <div className="flex h-28 w-28 flex-col items-center justify-center gap-1.5 border-2 border-dashed border-gold/20 text-muted">
+        <div className={`flex ${qrSize} flex-col items-center justify-center gap-1.5 border-2 border-dashed border-gold/20 text-muted`}>
           <svg className="size-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
             <rect x="3" y="3" width="7" height="7" rx="1" />
             <rect x="14" y="3" width="7" height="7" rx="1" />
@@ -226,8 +229,74 @@ function QrCard({ label, imgUrl, titular }) {
           <span className="text-[9px] leading-tight">Sin QR<br/>configurado</span>
         </div>
       )}
-      {titular && <p className="text-xs font-bold text-gold">{titular}</p>}
+      {titular && <p className={`font-bold text-gold ${solo ? 'text-sm' : 'text-xs'}`}>{titular}</p>}
     </div>
+  )
+}
+
+/* ── Barra de cupos ── */
+function CuposBar({ inscritos, limite }) {
+  const pct       = Math.min(100, Math.round((inscritos / limite) * 100))
+  const casiLleno = pct >= 80
+  const lleno     = inscritos >= limite
+
+  return (
+    <div className="space-y-2 border border-gold/20 bg-surface px-4 py-3">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-cream">
+          {lleno ? 'Cupo completado' : `${inscritos} de ${limite} cupos ocupados`}
+        </span>
+        <span className={casiLleno ? 'font-bold text-gold' : 'text-muted'}>{pct}%</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface2">
+        <div
+          className={[
+            'h-full rounded-full transition-all duration-700',
+            lleno ? 'bg-muted/50' : casiLleno ? 'animate-pulse bg-gold' : 'bg-gold/60',
+          ].join(' ')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {casiLleno && !lleno && (
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gold">
+          ¡Solo quedan {limite - inscritos} {limite - inscritos === 1 ? 'cupo' : 'cupos'}!
+        </p>
+      )}
+    </div>
+  )
+}
+
+/* ── Cupo completo ── */
+function CupoCompletoPanel({ whatsapp }) {
+  const digits = whatsapp?.replace(/\D/g, '') ?? ''
+  const waHref = digits ? `https://wa.me/${digits.length === 9 ? `51${digits}` : digits}` : null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="border border-muted/20 bg-surface p-8 text-center"
+    >
+      <div className="mx-auto mb-5 flex size-16 items-center justify-center border border-muted/30 bg-surface2 text-muted">
+        <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+        </svg>
+      </div>
+      <p className="font-display text-4xl text-cream">CUPO COMPLETO</p>
+      <p className="mx-auto mt-3 max-w-sm text-sm text-muted">
+        Los cupos para este sorteo se han agotado. Si crees que hay un error o quieres ser
+        notificado de futuros sorteos, contáctanos por WhatsApp.
+      </p>
+      {waHref && (
+        <a
+          href={waHref}
+          target="_blank" rel="noreferrer"
+          className="mt-6 inline-block border border-gold/40 px-6 py-3 text-sm font-bold uppercase tracking-widest text-gold transition-colors hover:bg-gold/10"
+        >
+          Contactar por WhatsApp
+        </a>
+      )}
+    </motion.div>
   )
 }
 
@@ -295,14 +364,45 @@ function RegistroForm({ sorteoId, terminos, onSuccess }) {
   const [comprobanteFile, setComprobanteFile] = useState(null)
   const [showTerminos, setShowTerminos]  = useState(false)
   const [dragOver, setDragOver]          = useState(false)
+  const [dni, setDni]                    = useState('')
+  const [dniLoading, setDniLoading]      = useState(false)
+  const [dniAlert, setDniAlert]          = useState(null) // { type: 'warn'|'error', msg }
   const [nombres, setNombres]            = useState('')
   const [apellidos, setApellidos]        = useState('')
   const [whatsapp, setWhatsapp]          = useState('')
+  const [ubicacion, setUbicacion]        = useState({ departamento: '', provincia: '', distrito: '', direccion: '' })
   const [aceptoTerminos, setAcepto]      = useState(false)
   const [errors, setErrors]              = useState({})
   const [isPending, startTransition]     = useTransition()
   const formRef = useRef(null)
   const fileRef = useRef(null)
+
+  async function handleDniChange(e) {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 8)
+    setDni(val)
+    setDniAlert(null)
+    if (val.length !== 8) return
+
+    setDniLoading(true)
+    const result = await fetchDniParticipante(val)
+    setDniLoading(false)
+
+    if (result.ok) {
+      setNombres(toTitleCase(result.nombres))
+      setApellidos(toTitleCase(result.apellidos))
+      setUbicacion({
+        departamento: result.departamento,
+        provincia:    result.provincia,
+        distrito:     result.distrito,
+        direccion:    result.direccion,
+      })
+      setDniAlert(null)
+    } else if (result.error === 'not_found') {
+      setDniAlert({ type: 'warn', msg: 'DNI no encontrado en el padrón. Ingresa tus datos manualmente.' })
+    } else {
+      setDniAlert({ type: 'error', msg: 'No se pudo consultar el DNI. Ingresa tus datos manualmente.' })
+    }
+  }
 
   async function handleFile(file) {
     if (!file) return
@@ -349,11 +449,39 @@ function RegistroForm({ sorteoId, terminos, onSuccess }) {
         </div>
 
         <input type="hidden" name="sorteo_id" value={sorteoId} />
+        <input type="hidden" name="departamento" value={ubicacion.departamento} />
+        <input type="hidden" name="provincia"    value={ubicacion.provincia} />
+        <input type="hidden" name="distrito"     value={ubicacion.distrito} />
+        <input type="hidden" name="direccion"    value={ubicacion.direccion} />
         <h2 className="font-display text-3xl text-cream">REGISTRAR PARTICIPACIÓN</h2>
 
         {errors._ && (
           <div className="rounded border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{errors._}</div>
         )}
+
+        {/* DNI */}
+        <Field label="DNI" error={null}>
+          <div className="relative">
+            <input
+              type="text" inputMode="numeric" name="dni" value={dni} onChange={handleDniChange}
+              maxLength={8} placeholder="12345678"
+              className={inputCls(false) + ' pr-9'}
+            />
+            {dniLoading && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                <svg className="size-4 animate-spin text-gold" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
+                </svg>
+              </span>
+            )}
+          </div>
+          {dniAlert && (
+            <p className={`mt-1.5 text-xs ${dniAlert.type === 'warn' ? 'text-gold' : 'text-danger'}`}>
+              {dniAlert.msg}
+            </p>
+          )}
+        </Field>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Nombres" error={errors.nombres}>

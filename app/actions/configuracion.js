@@ -40,7 +40,7 @@ export async function saveConfiguracion(formData) {
   const upserts = textKeys.map(key => ({ clave: key, valor: formData.get(key) ?? '' }))
 
   // Handle image uploads
-  const imageKeys = ['logo', 'qr_yape', 'qr_plin']
+  const imageKeys = ['logo', 'qr_yape']
   const errors = {}
 
   for (const key of imageKeys) {

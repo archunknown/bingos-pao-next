@@ -12,7 +12,7 @@ export default async function ConfiguracionPage() {
   const config = Object.fromEntries((rows ?? []).map(r => [r.clave, r.valor]))
 
   // Generate public storage URLs for existing images
-  const imageKeys = ['logo', 'qr_yape', 'qr_plin']
+  const imageKeys = ['logo', 'qr_yape']
   const imageUrls = {}
   for (const key of imageKeys) {
     const path = config[`${key}_path`]

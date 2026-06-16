@@ -109,12 +109,6 @@ export default function ConfiguracionClient({ config, imageUrls }) {
               currentUrl={imageUrls.qr_yape_url}
               error={errors.qr_yape}
             />
-            <FileField
-              label="QR Plin"
-              name="qr_plin"
-              currentUrl={imageUrls.qr_plin_url}
-              error={errors.qr_plin}
-            />
           </div>
         </Section>
 
