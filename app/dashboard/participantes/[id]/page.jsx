@@ -10,7 +10,7 @@ export default async function ParticipanteShowPage({ params }) {
 
   const { data: participante } = await supabase
     .from('participantes')
-    .select('id, nombres, apellidos, whatsapp, numero_registro, estado, created_at, nota_interna, comprobante_path, sorteo_id, sorteos(id, nombre)')
+    .select('id, nombres, apellidos, whatsapp, dni, departamento, provincia, distrito, direccion, numero_registro, estado, created_at, nota_interna, comprobante_path, sorteo_id, sorteos(id, nombre)')
     .eq('id', id)
     .single()
 

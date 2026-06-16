@@ -4,6 +4,46 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
+export async function fetchDniParticipante(dni) {
+  const token = process.env.DNI_API_TOKEN
+  if (!token) return { error: 'config' }
+
+  try {
+    const res = await fetch(`https://miapi.cloud/v1/dni/${dni}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      next: { revalidate: 3600 },
+    })
+
+    if (!res.ok) return { error: 'not_found' }
+
+    const json = await res.json()
+    const d = json.datos ?? json.data ?? json
+
+    const domicilio    = d.domiciliado ?? d.ubigeo ?? d.direccion ?? {}
+    const nombres      = d.nombres ?? d.nombre ?? ''
+    const paterno      = d.ape_paterno ?? d.apellido_paterno ?? d.apellidoPaterno ?? d.paterno ?? ''
+    const materno      = d.ape_materno ?? d.apellido_materno ?? d.apellidoMaterno ?? d.materno ?? ''
+    const departamento = d.departamento ?? domicilio.departamento ?? ''
+    const provincia    = d.provincia ?? domicilio.provincia ?? ''
+    const distrito     = d.distrito ?? domicilio.distrito ?? ''
+    const direccion    = domicilio.direccion ?? d.direccion ?? ''
+
+    if (!nombres && !paterno) return { error: 'not_found' }
+
+    return {
+      ok: true,
+      nombres,
+      apellidos: [paterno, materno].filter(Boolean).join(' '),
+      departamento,
+      provincia,
+      distrito,
+      direccion,
+    }
+  } catch {
+    return { error: 'server' }
+  }
+}
+
 export async function registrarParticipante(formData) {
   // Honeypot — bots fill this field, humans never do
   if (formData.get('website')) return { errors: { _: 'Solicitud inválida.' } }
@@ -14,6 +54,11 @@ export async function registrarParticipante(formData) {
   const sorteoId   = formData.get('sorteo_id')
   const terminos   = formData.get('terminos')
   const comprobante = formData.get('comprobante')
+  const dni         = formData.get('dni')?.replace(/\D/g, '').slice(0, 8) || null
+  const departamento = formData.get('departamento')?.trim() || null
+  const provincia   = formData.get('provincia')?.trim() || null
+  const distrito    = formData.get('distrito')?.trim() || null
+  const direccion   = formData.get('direccion')?.trim() || null
 
   const errors = {}
   if (!nombres   || nombres.length < 2)   errors.nombres    = 'Ingresa tu nombre (mínimo 2 caracteres).'
@@ -76,6 +121,11 @@ export async function registrarParticipante(formData) {
     sorteo_id: sorteoId,
     comprobante_path: filePath,
     estado: 'pendiente',
+    dni,
+    departamento,
+    provincia,
+    distrito,
+    direccion,
   })
 
   if (insertError) {

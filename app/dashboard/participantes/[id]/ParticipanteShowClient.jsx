@@ -72,7 +72,16 @@ export default function ParticipanteShowClient({ participante, comprobanteUrl })
               </span>
             </DataRow>
             <DataRow label="Nombres" value={`${participante.nombres} ${participante.apellidos}`} />
+            {participante.dni && (
+              <DataRow label="DNI" value={participante.dni} mono />
+            )}
             <DataRow label="WhatsApp" value={participante.whatsapp} />
+            {(participante.departamento || participante.provincia || participante.distrito) && (
+              <DataRow label="Ubicación" value={[participante.distrito, participante.provincia, participante.departamento].filter(Boolean).join(', ')} />
+            )}
+            {participante.direccion && (
+              <DataRow label="Dirección" value={participante.direccion} />
+            )}
             <DataRow label="Sorteo" value={participante.sorteos?.nombre ?? '—'} />
             <DataRow
               label="Registrado"

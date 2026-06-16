@@ -15,7 +15,7 @@ export async function GET(request) {
 
   let query = supabase
     .from('participantes')
-    .select('id, nombres, apellidos, whatsapp, estado, numero_registro, nota_interna, created_at, sorteos(nombre, fecha_sorteo)')
+    .select('id, nombres, apellidos, whatsapp, dni, departamento, provincia, distrito, direccion, estado, numero_registro, nota_interna, created_at, sorteos(nombre, fecha_sorteo)')
     .order('created_at', { ascending: false })
 
   if (sorteoId) query = query.eq('sorteo_id', sorteoId)
@@ -30,7 +30,12 @@ export async function GET(request) {
     'N° Registro': p.numero_registro ?? '—',
     'Nombres': p.nombres,
     'Apellidos': p.apellidos,
+    'DNI': p.dni ?? '—',
     'WhatsApp': p.whatsapp,
+    'Departamento': p.departamento ?? '—',
+    'Provincia': p.provincia ?? '—',
+    'Distrito': p.distrito ?? '—',
+    'Dirección': p.direccion ?? '—',
     'Estado': ESTADO_LABEL[p.estado] ?? p.estado,
     'Sorteo': p.sorteos?.nombre ?? '—',
     'Fecha del sorteo': p.sorteos?.fecha_sorteo
@@ -45,8 +50,9 @@ export async function GET(request) {
 
   // Column widths
   ws['!cols'] = [
-    { wch: 5 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 14 },
-    { wch: 14 }, { wch: 28 }, { wch: 20 }, { wch: 20 }, { wch: 35 },
+    { wch: 5 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 12 },
+    { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
+    { wch: 14 }, { wch: 30 }, { wch: 28 }, { wch: 20 }, { wch: 20 }, { wch: 35 },
   ]
 
   XLSX.utils.book_append_sheet(wb, ws, 'Participantes')
