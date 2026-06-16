@@ -39,7 +39,17 @@ const { error: e4 } = await supabase.from('sorteos').delete().neq('id', 0)
 if (e4) console.error('Error vaciando sorteos:', e4.message)
 else console.log('✓  sorteos vaciada')
 
-// 5. Bucket comprobantes
+// 5. Bucket sorteos (imágenes de cada sorteo)
+const { data: sorteoFiles } = await supabase.storage.from('sorteos').list('', { limit: 1000 })
+if (sorteoFiles?.length) {
+  const paths = sorteoFiles.map(f => f.name)
+  await supabase.storage.from('sorteos').remove(paths)
+  console.log('✓  bucket sorteos vaciado')
+} else {
+  console.log('–  bucket sorteos ya estaba vacío')
+}
+
+// 7. Bucket comprobantes
 const { data: folders } = await supabase.storage.from('comprobantes').list('', { limit: 1000 })
 if (folders?.length) {
   for (const folder of folders) {

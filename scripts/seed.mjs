@@ -7,6 +7,11 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // ── Env ──────────────────────────────────────────────────────────────────────
 
@@ -29,6 +34,10 @@ const APELLIDOS = ['García','Rodríguez','López','Martínez','González','Pér
 
 const hoy = new Date()
 const dias = (n) => { const d = new Date(hoy); d.setDate(d.getDate() + n); return d.toISOString() }
+
+// Imágenes default para el seed (alternamos entre dos para dar variedad visual)
+const IMG_HERO   = readFileSync(join(__dirname, '../public/sorteo-hero.webp'))
+const IMG_BANNER = readFileSync(join(__dirname, '../public/banner.webp'))
 
 const SORTEOS_SEED = [
   {
@@ -70,6 +79,7 @@ const SORTEOS_SEED = [
       precio_participacion: 5.00,
       descripcion: 'Nuestro pozito semanal, ¡participa y gana cada semana!',
       estado: 'activo',
+      limite_participantes: 20, // 18/20 inscritos → barra al 90% "casi lleno"
     },
     premios: [
       { nombre: 'Premio Mayor',    cantidad: 1, monto: 400.00, descripcion_premio: null, orden: 1 },
@@ -77,6 +87,23 @@ const SORTEOS_SEED = [
       { nombre: 'Premio Consuelo', cantidad: 5, monto: null,   descripcion_premio: 'Billeteras', orden: 3 },
     ],
     participantes: { total: 20, confirmados: 12, rechazados: 2 },
+  },
+  {
+    sorteo: {
+      nombre: 'Bingo Especial Junio',
+      tipo: 'especial',
+      fecha_sorteo: dias(15),
+      precio_participacion: 8.00,
+      descripcion: 'Bingo especial de junio con premios en efectivo y sorpresas.',
+      estado: 'activo',
+      limite_participantes: 14, // 14/14 inscritos → cupo completo
+    },
+    premios: [
+      { nombre: 'Premio Mayor',   cantidad: 1, monto: 250.00, descripcion_premio: null, orden: 1 },
+      { nombre: 'Segundo Premio', cantidad: 1, monto: 80.00,  descripcion_premio: null, orden: 2 },
+      { nombre: 'Canasta',        cantidad: 3, monto: null,   descripcion_premio: 'Canasta de productos', orden: 3 },
+    ],
+    participantes: { total: 15, confirmados: 10, rechazados: 1 },
   },
   {
     sorteo: {
@@ -138,6 +165,18 @@ for (const item of SORTEOS_SEED) {
     .single()
 
   if (errSorteo) { console.error(`Error creando sorteo "${item.sorteo.nombre}":`, errSorteo.message); continue }
+
+  // ── 1b. Imagen placeholder ──
+  const imgBuffer = sorteo.id % 2 === 0 ? IMG_BANNER : IMG_HERO
+  const imgPath   = `${sorteo.id}-seed.webp`
+  const { error: imgErr } = await supabase.storage
+    .from('sorteos')
+    .upload(imgPath, imgBuffer, { contentType: 'image/webp', upsert: true })
+  if (imgErr) {
+    console.warn(`  ⚠  Imagen no subida para "${sorteo.nombre}":`, imgErr.message)
+  } else {
+    await supabase.from('sorteos').update({ imagen_path: imgPath }).eq('id', sorteo.id)
+  }
 
   // ── 2. Premios ──
   const { data: premios, error: errPremios } = await supabase
