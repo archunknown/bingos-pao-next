@@ -15,7 +15,7 @@ export default async function LandingPage() {
     supabase.from('configuracion').select('clave, valor'),
     supabase
       .from('sorteos')
-      .select('id, nombre, tipo, precio_participacion, fecha_sorteo, premios(id, nombre, monto, descripcion_premio, orden, visible)')
+      .select('id, nombre, tipo, precio_participacion, fecha_sorteo, imagen_path, limite_participantes, premios(id, nombre, monto, descripcion_premio, orden, visible)')
       .eq('estado', 'activo')
       .order('fecha_sorteo', { ascending: true }),
     supabase
@@ -28,8 +28,7 @@ export default async function LandingPage() {
 
   const config = Object.fromEntries((configRows ?? []).map(r => [r.clave, r.valor]))
 
-  // Generate QR & image public URLs
-  const imageKeys = ['logo', 'qr_yape', 'qr_plin']
+  const imageKeys = ['logo', 'qr_yape']
   for (const key of imageKeys) {
     const path = config[`${key}_path`]
     if (path) {
@@ -38,17 +37,42 @@ export default async function LandingPage() {
     }
   }
 
-  // Sort premios within each sorteo
-  const sorteos = (sorteosRows ?? []).map(s => ({
-    ...s,
-    premios: (s.premios ?? []).filter(p => p.visible !== false).sort((a, b) => a.orden - b.orden),
-    fecha_sorteo_fmt: new Date(s.fecha_sorteo).toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'long', timeStyle: 'short' }),
-  }))
+  // Contar participantes activos (pendiente + confirmado) por sorteo en una sola query
+  const sorteoIds = (sorteosRows ?? []).map(s => s.id)
+  let conteoPorSorteo = {}
+  if (sorteoIds.length) {
+    const { data: conteos } = await supabase
+      .from('participantes')
+      .select('sorteo_id')
+      .in('sorteo_id', sorteoIds)
+      .in('estado', ['pendiente', 'confirmado'])
+    for (const row of (conteos ?? [])) {
+      conteoPorSorteo[row.sorteo_id] = (conteoPorSorteo[row.sorteo_id] ?? 0) + 1
+    }
+  }
 
-  // Fechas de sorteos activos para el countdown
+  const sorteos = (sorteosRows ?? []).map(s => {
+    let imagen_url = null
+    if (s.imagen_path) {
+      const { data: { publicUrl } } = supabase.storage.from('sorteos').getPublicUrl(s.imagen_path)
+      imagen_url = publicUrl || null
+    }
+    const inscritos = conteoPorSorteo[s.id] ?? 0
+    const cupo_lleno = s.limite_participantes != null && inscritos >= s.limite_participantes
+    return {
+      ...s,
+      imagen_url,
+      inscritos,
+      cupo_lleno,
+      premios: (s.premios ?? []).filter(p => p.visible !== false).sort((a, b) => a.orden - b.orden),
+      fecha_sorteo_fmt: new Date(s.fecha_sorteo).toLocaleString('es-PE', {
+        timeZone: 'America/Lima', dateStyle: 'long', timeStyle: 'short',
+      }),
+    }
+  })
+
   const fechas_sorteos = sorteos.map(s => s.fecha_sorteo).filter(Boolean)
 
-  // Pre-process ganadores for client
   const AVATAR_COLORS = ['bg-gold/20 text-gold', 'bg-danger/20 text-danger', 'bg-success/20 text-success', 'bg-cream/10 text-cream']
   const ganadores = (ganadoresRows ?? []).map((g, i) => {
     const nombreCompleto = `${g.participante?.nombres ?? ''} ${g.participante?.apellidos ?? ''}`.trim()

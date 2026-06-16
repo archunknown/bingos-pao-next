@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 
 const TIPOS_VALIDOS = ['sorteo', 'pozito', 'especial', 'aniversario']
+const IMAGEN_MAX_BYTES = 5 * 1024 * 1024 // 5 MB
 
 function validate(data) {
   const errors = {}
@@ -27,31 +28,65 @@ function validate(data) {
   return errors
 }
 
+async function uploadSorteoImagen(supabase, id, file) {
+  if (!(file instanceof Blob) || file.size === 0) return null
+  if (!file.type.startsWith('image/')) return null
+  if (file.size > IMAGEN_MAX_BYTES) return null
+
+  const ext = (file.name || 'jpg').split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+  const path = `${id}.${ext}`
+  const buffer = await file.arrayBuffer()
+
+  const { error } = await supabase.storage
+    .from('sorteos')
+    .upload(path, buffer, { contentType: file.type, upsert: true })
+
+  return error ? null : path
+}
+
+async function deleteSorteoImagen(supabase, path) {
+  if (!path) return
+  await supabase.storage.from('sorteos').remove([path])
+}
+
 export async function createSorteo(prevState, formData) {
   const supabase = createAdminClient()
 
   const raw = {
-    nombre: formData.get('nombre')?.trim() ?? '',
-    tipo: formData.get('tipo') ?? '',
-    fecha_sorteo: formData.get('fecha_sorteo') ?? '',
+    nombre:               formData.get('nombre')?.trim() ?? '',
+    tipo:                 formData.get('tipo') ?? '',
+    fecha_sorteo:         formData.get('fecha_sorteo') ?? '',
     precio_participacion: formData.get('precio_participacion') ?? '',
-    descripcion: formData.get('descripcion')?.trim() || null,
-    estado: 'borrador',
+    descripcion:          formData.get('descripcion')?.trim() || null,
+    limite_participantes: formData.get('limite_participantes')?.trim() || null,
   }
 
   const errors = validate(raw)
   if (Object.keys(errors).length) return { errors, values: raw }
 
-  const { error } = await supabase.from('sorteos').insert([{
-    nombre: raw.nombre,
-    tipo: raw.tipo,
-    fecha_sorteo: raw.fecha_sorteo,
-    precio_participacion: parseFloat(raw.precio_participacion),
-    descripcion: raw.descripcion,
-    estado: 'borrador',
-  }])
+  const limiteVal = raw.limite_participantes ? parseInt(raw.limite_participantes, 10) : null
+
+  const { data: nuevo, error } = await supabase
+    .from('sorteos')
+    .insert([{
+      nombre:               raw.nombre,
+      tipo:                 raw.tipo,
+      fecha_sorteo:         raw.fecha_sorteo,
+      precio_participacion: parseFloat(raw.precio_participacion),
+      descripcion:          raw.descripcion,
+      limite_participantes: limiteVal,
+      estado:               'borrador',
+    }])
+    .select('id')
+    .single()
 
   if (error) return { errors: { _: error.message }, values: raw }
+
+  const imagen = formData.get('imagen')
+  const imagenPath = await uploadSorteoImagen(supabase, nuevo.id, imagen)
+  if (imagenPath) {
+    await supabase.from('sorteos').update({ imagen_path: imagenPath }).eq('id', nuevo.id)
+  }
 
   redirect('/dashboard/sorteos?success=Sorteo creado correctamente')
 }
@@ -60,24 +95,48 @@ export async function updateSorteo(id, prevState, formData) {
   const supabase = createAdminClient()
 
   const raw = {
-    nombre: formData.get('nombre')?.trim() ?? '',
-    tipo: formData.get('tipo') ?? '',
-    fecha_sorteo: formData.get('fecha_sorteo') ?? '',
+    nombre:               formData.get('nombre')?.trim() ?? '',
+    tipo:                 formData.get('tipo') ?? '',
+    fecha_sorteo:         formData.get('fecha_sorteo') ?? '',
     precio_participacion: formData.get('precio_participacion') ?? '',
-    descripcion: formData.get('descripcion')?.trim() || null,
+    descripcion:          formData.get('descripcion')?.trim() || null,
+    limite_participantes: formData.get('limite_participantes')?.trim() || null,
   }
 
   const errors = validate(raw)
   if (Object.keys(errors).length) return { errors, values: raw }
 
+  const limiteVal = raw.limite_participantes ? parseInt(raw.limite_participantes, 10) : null
+
+  const { data: current } = await supabase
+    .from('sorteos')
+    .select('imagen_path')
+    .eq('id', id)
+    .single()
+
+  const imagenUpdate = {}
+  const imagen = formData.get('imagen')
+  const removeImagen = formData.get('remove_imagen') === '1'
+
+  if (imagen instanceof Blob && imagen.size > 0) {
+    await deleteSorteoImagen(supabase, current?.imagen_path)
+    const newPath = await uploadSorteoImagen(supabase, id, imagen)
+    if (newPath) imagenUpdate.imagen_path = newPath
+  } else if (removeImagen && current?.imagen_path) {
+    await deleteSorteoImagen(supabase, current.imagen_path)
+    imagenUpdate.imagen_path = null
+  }
+
   const { error } = await supabase
     .from('sorteos')
     .update({
-      nombre: raw.nombre,
-      tipo: raw.tipo,
-      fecha_sorteo: raw.fecha_sorteo,
+      nombre:               raw.nombre,
+      tipo:                 raw.tipo,
+      fecha_sorteo:         raw.fecha_sorteo,
       precio_participacion: parseFloat(raw.precio_participacion),
-      descripcion: raw.descripcion,
+      descripcion:          raw.descripcion,
+      limite_participantes: limiteVal,
+      ...imagenUpdate,
     })
     .eq('id', id)
 
@@ -91,7 +150,7 @@ export async function deleteSorteo(id) {
 
   const { data: sorteo } = await supabase
     .from('sorteos')
-    .select('estado')
+    .select('estado, imagen_path')
     .eq('id', id)
     .single()
 
@@ -105,6 +164,10 @@ export async function deleteSorteo(id) {
     redirect('/dashboard/sorteos?error=No se puede eliminar un sorteo con participantes registrados')
   }
 
+  if (sorteo?.imagen_path) {
+    await deleteSorteoImagen(supabase, sorteo.imagen_path)
+  }
+
   await supabase.from('sorteos').delete().eq('id', id)
 
   redirect('/dashboard/sorteos?success=Sorteo eliminado correctamente')
@@ -115,7 +178,7 @@ export async function toggleEstado(id) {
 
   const { data: sorteo } = await supabase
     .from('sorteos')
-    .select('estado')
+    .select('estado, imagen_path')
     .eq('id', id)
     .single()
 
@@ -126,15 +189,23 @@ export async function toggleEstado(id) {
     redirect('/dashboard/sorteos?error=Este sorteo ya está cerrado y no puede cambiar de estado')
   }
 
+  const updatePayload = { estado: nuevoEstado }
+
   if (nuevoEstado === 'cerrado') {
+    // Purgar comprobantes de participantes
     const { data: files } = await supabase.storage.from('comprobantes').list(String(id), { limit: 1000 })
     if (files?.length) {
       const filePaths = files.map((f) => `${id}/${f.name}`)
       await supabase.storage.from('comprobantes').remove(filePaths)
     }
+    // Purgar imagen del sorteo
+    if (sorteo?.imagen_path) {
+      await deleteSorteoImagen(supabase, sorteo.imagen_path)
+      updatePayload.imagen_path = null
+    }
   }
 
-  await supabase.from('sorteos').update({ estado: nuevoEstado }).eq('id', id)
+  await supabase.from('sorteos').update(updatePayload).eq('id', id)
 
   redirect(`/dashboard/sorteos?success=Estado actualizado a "${nuevoEstado}"`)
 }

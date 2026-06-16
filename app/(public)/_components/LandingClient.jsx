@@ -3,22 +3,22 @@
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 const TIPO_LABEL = {
   sorteo: 'SORTEO', pozito: 'POZITO', especial: 'ESPECIAL', aniversario: 'ANIVERSARIO',
 }
 
+const TIPO_GRADIENT = {
+  sorteo:      ['#0A1A08', '#152A12'],
+  pozito:      ['#080A1A', '#10122A'],
+  especial:    ['#1A0808', '#2A1010'],
+  aniversario: ['#1A1408', '#2A2010'],
+}
+
 export default function LandingClient({ config, sorteos, ganadores, fechas_sorteos }) {
   return (
     <>
-      <HeroSection config={config} fechas_sorteos={fechas_sorteos} hay_sorteos={sorteos.length > 0} />
-      {sorteos.length > 0 && (
-        <>
-          <Divider />
-          <SorteosSection sorteos={sorteos} />
-        </>
-      )}
+      <HeroSection config={config} fechas_sorteos={fechas_sorteos} sorteos={sorteos} />
       <Divider />
       <StreamSection config={config} />
       {ganadores.length > 0 && (
@@ -35,12 +35,33 @@ export default function LandingClient({ config, sorteos, ganadores, fechas_sorte
 
 function Divider() { return <div className="h-px bg-gold/10" /> }
 
-/* ── Hero ── */
-function HeroSection({ config, fechas_sorteos, hay_sorteos }) {
-  const countdown = useCountdown(fechas_sorteos)
+/* ─── Fade animation helper ──────────────────────────────────────────────── */
+const fadeUp = {
+  hidden:  { opacity: 0, y: 28 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+}
+function FadeUp({ children, className, delay }) {
+  return (
+    <motion.div
+      variants={delay != null
+        ? { hidden: { opacity: 0, y: 28 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut', delay } } }
+        : fadeUp}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+function HeroSection({ config, fechas_sorteos, sorteos }) {
+  const countdown  = useCountdown(fechas_sorteos)
+  const hasSorteos = sorteos.length > 0
+  const router     = useRouter()
 
   return (
-    <section className="relative overflow-hidden bg-bg px-4 py-16 text-center md:py-24">
+    <section className="relative overflow-hidden bg-bg">
+      {/* Banner background with blur */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -51,142 +72,444 @@ function HeroSection({ config, fechas_sorteos, hay_sorteos }) {
           transform: 'scale(1.05)',
         }}
       />
-      <div className="pointer-events-none absolute inset-0" style={{ background: 'rgba(10,10,10,0.75)' }} />
+      {/* Dark overlay */}
+      <div className="pointer-events-none absolute inset-0" style={{ background: 'rgba(10,10,10,0.78)' }} />
+      {/* Dot pattern */}
       <motion.div
         className="pointer-events-none absolute inset-0"
         animate={{ scale: [1, 1.02, 1] }}
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         style={{
-          backgroundImage: 'radial-gradient(circle, rgba(212,175,55,0.07) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, rgba(212,175,55,0.06) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }}
       />
+      {/* Gold vignette */}
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 35%, rgba(212,175,55,0.10), transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(212,175,55,0.09), transparent 70%)' }}
       />
 
-      <motion.div
-        className="relative mx-auto max-w-4xl"
-        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.15 } } }}
-        initial="hidden" animate="visible"
-      >
-        <motion.p
-          variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } } }}
-          className="mb-4 text-[10px] font-medium uppercase tracking-[0.3em] text-muted"
-        >
-          Sorteos en vivo · Facebook Live
-        </motion.p>
+      {hasSorteos ? (
+        /* ── Two-column layout ── */
+        <div className="relative mx-auto max-w-6xl px-4 py-12 md:py-16 lg:py-20">
+          <div className="flex flex-col gap-10 md:grid md:grid-cols-[1fr_380px] md:items-center md:gap-10 lg:grid-cols-[1fr_420px] lg:gap-16">
 
-        <motion.h1
-          variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } } }}
-          className="font-display leading-none"
-        >
-          <span className="block text-7xl text-cream md:text-9xl">GANA</span>
-          <span
-            className="block text-7xl md:text-9xl"
-            style={{
-              background: 'linear-gradient(135deg, #B8960C 0%, #D4AF37 40%, #F0D060 70%, #D4AF37 100%)',
-              WebkitBackgroundClip: 'text', backgroundClip: 'text',
-              WebkitTextFillColor: 'transparent', color: 'transparent',
-              filter: 'drop-shadow(0 0 20px rgba(212,175,55,0.25))',
-            }}
-          >
-            PREMIOS
-          </span>
-        </motion.h1>
+            {/* Left: Hero info */}
+            <motion.div
+              className="flex flex-col"
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }}
+              initial="hidden" animate="visible"
+            >
+              <FadeUp>
+                <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.3em] text-muted">
+                  Sorteos en vivo · Facebook Live
+                </p>
+              </FadeUp>
 
-        <motion.p
-          variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } } }}
-          className="mx-auto mt-6 max-w-lg text-base text-cream/80"
-        >
-          Participa en nuestros sorteos y bingos en vivo por Facebook. Registra tu
-          comprobante y espera el resultado en directo.
-        </motion.p>
+              <FadeUp>
+                <h1 className="font-display leading-none">
+                  <span className="block text-[clamp(3.5rem,8vw,6rem)] text-cream">GANA</span>
+                  <span
+                    className="block text-[clamp(3.5rem,8vw,6rem)]"
+                    style={{
+                      background: 'linear-gradient(135deg, #B8960C 0%, #D4AF37 40%, #F0D060 70%, #D4AF37 100%)',
+                      WebkitBackgroundClip: 'text', backgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent', color: 'transparent',
+                      filter: 'drop-shadow(0 0 18px rgba(212,175,55,0.22))',
+                    }}
+                  >
+                    PREMIOS
+                  </span>
+                </h1>
+              </FadeUp>
 
-        {/* Countdown */}
-        {countdown && !countdown.expired && (
+              <FadeUp>
+                <p className="mt-5 max-w-md text-base leading-relaxed text-cream/75">
+                  Participa en nuestros sorteos y bingos en vivo por Facebook.
+                  Registra tu comprobante y espera el resultado en directo.
+                </p>
+              </FadeUp>
+
+              {countdown && !countdown.expired && (
+                <FadeUp className="mt-8">
+                  <CountdownDisplay countdown={countdown} />
+                </FadeUp>
+              )}
+
+              {countdown?.expired && (
+                <FadeUp>
+                  <p className="mt-6 font-display text-2xl tracking-widest text-gold">
+                    ¡EL SORTEO ESTÁ EN CURSO!
+                  </p>
+                </FadeUp>
+              )}
+
+              {config.url_stream_live && (
+                <FadeUp className="mt-8">
+                  <a
+                    href={config.url_stream_live}
+                    target="_blank" rel="noreferrer"
+                    className="border border-gold/50 px-7 py-3.5 text-sm font-bold uppercase tracking-widest text-gold transition-colors hover:bg-gold/10"
+                  >
+                    Ver en vivo
+                  </a>
+                </FadeUp>
+              )}
+
+              {config.mensaje_destacado && (
+                <FadeUp>
+                  <p className="mt-6 text-sm text-muted">✦ {config.mensaje_destacado}</p>
+                </FadeUp>
+              )}
+            </motion.div>
+
+            {/* Right: Sorteos panel */}
+            <SorteosHeroPanel sorteos={sorteos} router={router} />
+          </div>
+        </div>
+      ) : (
+        /* ── Centered layout (no sorteos) ── */
+        <div className="relative mx-auto max-w-4xl px-4 py-16 text-center md:py-24">
           <motion.div
-            variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } } }}
-            className="mt-10"
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.15 } } }}
+            initial="hidden" animate="visible"
           >
-            <p className="mb-5 text-[10px] uppercase tracking-[0.25em] text-muted">Próximo sorteo en</p>
-            <style>{`
-              @keyframes flip-in { 0% { transform: rotateX(90deg); opacity: 0; } 100% { transform: rotateX(0deg); opacity: 1; } }
-              .flip-digit { animation: flip-in 0.3s ease-out; }
-            `}</style>
-            <div className="inline-flex items-center gap-1.5 md:gap-3">
-              {[
-                { v: countdown.days, l: 'días' },
-                { v: countdown.hours, l: 'horas' },
-                { v: countdown.minutes, l: 'min' },
-                { v: countdown.seconds, l: 'seg' },
-              ].map(({ v, l }, i) => (
-                <div key={l} className="flex items-center gap-1.5 md:gap-3">
-                  <div className="flex flex-col items-center border border-gold/30 bg-surface2 px-3 py-2.5 md:px-5 md:py-4" style={{ perspective: '400px' }}>
-                    <span key={v} className="flip-digit font-display text-5xl leading-none text-gold md:text-6xl" style={{ display: 'inline-block', transformOrigin: 'center' }}>
-                      {String(v).padStart(2, '0')}
-                    </span>
-                    <span className="mt-1.5 text-[9px] uppercase tracking-widest text-muted">{l}</span>
-                  </div>
-                  {i < 3 && <span className="font-display text-3xl text-gold/50 md:text-4xl">:</span>}
-                </div>
-              ))}
-            </div>
+            <FadeUp>
+              <p className="mb-4 text-[10px] font-medium uppercase tracking-[0.3em] text-muted">
+                Sorteos en vivo · Facebook Live
+              </p>
+            </FadeUp>
+
+            <FadeUp>
+              <h1 className="font-display leading-none">
+                <span className="block text-7xl text-cream md:text-9xl">GANA</span>
+                <span
+                  className="block text-7xl md:text-9xl"
+                  style={{
+                    background: 'linear-gradient(135deg, #B8960C 0%, #D4AF37 40%, #F0D060 70%, #D4AF37 100%)',
+                    WebkitBackgroundClip: 'text', backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent', color: 'transparent',
+                    filter: 'drop-shadow(0 0 20px rgba(212,175,55,0.25))',
+                  }}
+                >
+                  PREMIOS
+                </span>
+              </h1>
+            </FadeUp>
+
+            <FadeUp>
+              <p className="mx-auto mt-6 max-w-lg text-base text-cream/80">
+                Participa en nuestros sorteos y bingos en vivo por Facebook. Registra tu
+                comprobante y espera el resultado en directo.
+              </p>
+            </FadeUp>
+
+            {countdown && !countdown.expired && (
+              <FadeUp className="mt-10">
+                <CountdownDisplay countdown={countdown} centered />
+              </FadeUp>
+            )}
+
+            {countdown?.expired && (
+              <FadeUp>
+                <p className="mt-8 font-display text-3xl tracking-widest text-gold">
+                  ¡EL SORTEO ESTÁ EN CURSO!
+                </p>
+              </FadeUp>
+            )}
+
+            <FadeUp className="mt-10 flex flex-wrap justify-center gap-4">
+              <span className="border border-gold/30 px-8 py-4 text-sm font-bold uppercase tracking-widest text-muted">
+                Próximamente
+              </span>
+              {config.url_stream_live && (
+                <a
+                  href={config.url_stream_live}
+                  target="_blank" rel="noreferrer"
+                  className="border border-gold/50 px-8 py-4 text-sm font-bold uppercase tracking-widest text-gold transition-colors hover:bg-gold/10"
+                >
+                  Ver en vivo
+                </a>
+              )}
+            </FadeUp>
+
+            {config.mensaje_destacado && (
+              <FadeUp>
+                <p className="mx-auto mt-8 max-w-lg text-sm text-muted">
+                  ✦ {config.mensaje_destacado}
+                </p>
+              </FadeUp>
+            )}
           </motion.div>
-        )}
-
-        {countdown?.expired && (
-          <motion.p
-            variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } } }}
-            className="mt-8 font-display text-3xl tracking-widest text-gold"
-          >
-            ¡EL SORTEO ESTÁ EN CURSO!
-          </motion.p>
-        )}
-
-        <motion.div
-          variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } } }}
-          className="mt-10 flex flex-wrap justify-center gap-4"
-        >
-          {hay_sorteos ? (
-            <button
-              type="button"
-              onClick={() => document.getElementById('sorteos')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-danger px-8 py-4 text-sm font-bold uppercase tracking-widest text-white transition-colors hover:bg-danger-dark"
-            >
-              Participar ahora
-            </button>
-          ) : (
-            <span className="border border-gold/30 px-8 py-4 text-sm font-bold uppercase tracking-widest text-muted">
-              Próximamente
-            </span>
-          )}
-          {config.url_stream_live && (
-            <a
-              href={config.url_stream_live}
-              target="_blank" rel="noreferrer"
-              className="border border-gold/50 px-8 py-4 text-sm font-bold uppercase tracking-widest text-gold transition-colors hover:bg-gold/10"
-            >
-              Ver en vivo
-            </a>
-          )}
-        </motion.div>
-
-        {config.mensaje_destacado && (
-          <motion.p
-            variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } } }}
-            className="mx-auto mt-8 max-w-lg text-sm text-muted"
-          >
-            ✦ {config.mensaje_destacado}
-          </motion.p>
-        )}
-      </motion.div>
+        </div>
+      )}
     </section>
   )
 }
 
-/* ── Aurora orb ── */
+/* ─── Sorteos panel (right column / mobile carousel) ────────────────────── */
+function SorteosHeroPanel({ sorteos, router }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 32 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.6, ease: 'easeOut', delay: 0.25 }}
+    >
+      {/* Header */}
+      <div className="mb-4 flex items-center gap-3">
+        <span className="inline-block size-1.5 animate-pulse rounded-full bg-gold" />
+        <p className="font-display text-xl tracking-widest text-gold">
+          SORTEOS ACTIVOS
+        </p>
+        <span className="ml-auto border border-gold/30 bg-gold/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-gold">
+          {sorteos.length}
+        </span>
+      </div>
+
+      {/*
+        Mobile:  horizontal snap-scroll carousel
+        Desktop: vertical stack with max-height + scroll
+      */}
+      <div className="
+        flex gap-3 overflow-x-auto pb-2
+        md:flex-col md:overflow-x-visible md:overflow-y-auto md:max-h-[520px] md:pb-0 md:gap-3 md:pr-1
+        snap-x snap-mandatory md:snap-none
+      ">
+        {sorteos.slice(0, 6).map((s, i) => (
+          <motion.div
+            key={s.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.35 + i * 0.08 }}
+            className="snap-start shrink-0 w-[72vw] max-w-[300px] md:w-full md:max-w-none md:shrink-0"
+          >
+            <HeroSorteoCard sorteo={s} onParticipate={() => router.push(`/sorteos/${s.id}`)} />
+          </motion.div>
+        ))}
+
+        {/* Chip "+N más" cuando hay más de 6 */}
+        {sorteos.length > 6 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.35 + 6 * 0.08 }}
+            className="snap-start shrink-0 w-[72vw] max-w-[300px] md:w-full md:max-w-none md:shrink-0"
+          >
+            <div className="flex h-full min-h-[80px] items-center justify-center border border-gold/20 bg-surface/60 px-4 py-5 text-center md:min-h-[64px]">
+              <p className="text-sm font-semibold text-gold">
+                + {sorteos.length - 6} sorteos más disponibles
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Mobile scroll hint */}
+      {sorteos.length > 1 && (
+        <p className="mt-2 text-center text-[9px] uppercase tracking-widest text-muted/40 md:hidden">
+          desliza para ver más
+        </p>
+      )}
+    </motion.div>
+  )
+}
+
+/* ─── Hero sorteo card ───────────────────────────────────────────────────── */
+function HeroSorteoCard({ sorteo, onParticipate }) {
+  const diasRestantes = Math.max(0, Math.ceil((new Date(sorteo.fecha_sorteo) - Date.now()) / 86_400_000))
+  const urgente      = diasRestantes <= 3 && !sorteo.cupo_lleno
+  const tieneLimit   = sorteo.limite_participantes != null
+  const pct          = tieneLimit ? Math.min(100, Math.round((sorteo.inscritos / sorteo.limite_participantes) * 100)) : 0
+  const casiLleno    = tieneLimit && !sorteo.cupo_lleno && pct >= 80
+
+  return (
+    <div className={[
+      'group flex flex-col border bg-surface transition-all duration-300',
+      sorteo.cupo_lleno
+        ? 'border-muted/20 opacity-70'
+        : 'border-gold/20 hover:border-gold/50 hover:shadow-[0_0_28px_rgba(212,175,55,0.09)]',
+    ].join(' ')}>
+
+      {/* Image / gradient */}
+      <div className="relative h-32 shrink-0 overflow-hidden md:h-36">
+        {sorteo.imagen_url ? (
+          <img
+            src={sorteo.imagen_url}
+            alt={sorteo.nombre}
+            className={[
+              'h-full w-full object-cover transition-transform duration-500',
+              sorteo.cupo_lleno ? 'grayscale' : 'group-hover:scale-105',
+            ].join(' ')}
+          />
+        ) : (
+          <SorteoGradientBg tipo={sorteo.tipo} />
+        )}
+
+        {/* Cupo completo overlay */}
+        {sorteo.cupo_lleno && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+            <span className="border border-muted/40 bg-bg/80 px-3 py-1.5 font-display text-sm tracking-widest text-muted backdrop-blur-sm">
+              CUPO COMPLETO
+            </span>
+          </div>
+        )}
+
+        {/* Badges top */}
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-2.5">
+          <span className="border border-gold/30 bg-black/65 px-2 py-0.5 backdrop-blur-sm text-[9px] font-bold uppercase tracking-widest text-gold">
+            {TIPO_LABEL[sorteo.tipo] ?? sorteo.tipo.toUpperCase()}
+          </span>
+          <span className="bg-gold px-2 py-0.5 text-[9px] font-bold text-bg">
+            S/ {Number(sorteo.precio_participacion).toFixed(2)}
+          </span>
+        </div>
+
+        {/* Ribbons bottom */}
+        {urgente && (
+          <div className="absolute inset-x-0 bottom-0 bg-danger/90 px-2 py-1 text-center">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white">
+              {diasRestantes === 0 ? '¡Hoy!' : `${diasRestantes}d restantes`}
+            </span>
+          </div>
+        )}
+        {casiLleno && (
+          <div className="absolute inset-x-0 bottom-0 bg-gold/90 px-2 py-1 text-center">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-bg">
+              ¡Últimos cupos!
+            </span>
+          </div>
+        )}
+        {!urgente && !casiLleno && (
+          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-surface to-transparent" />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-1 flex-col p-3.5">
+        <h3 className="mb-0.5 text-sm font-semibold leading-tight text-cream">{sorteo.nombre}</h3>
+        <p className="mb-3 text-[11px] text-muted">{sorteo.fecha_sorteo_fmt}</p>
+
+        {sorteo.premios?.length > 0 && (
+          <ul className="mb-3 flex-1 space-y-1.5">
+            {sorteo.premios.slice(0, 2).map(p => (
+              <li key={p.id} className="flex items-center gap-2 text-xs">
+                <span className="shrink-0 text-[8px] text-gold">●</span>
+                <span className="truncate text-content">{p.nombre}</span>
+                {p.monto != null && (
+                  <span className="ml-auto shrink-0 font-bold text-gold">
+                    S/ {Number(p.monto).toFixed(2)}
+                  </span>
+                )}
+              </li>
+            ))}
+            {sorteo.premios.length > 2 && (
+              <li className="text-[10px] text-muted">+{sorteo.premios.length - 2} premios más</li>
+            )}
+          </ul>
+        )}
+
+        {/* Barra de cupos */}
+        {tieneLimit && (
+          <div className="mb-3 space-y-1">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-muted">
+                {sorteo.cupo_lleno ? 'Cupo completado' : `${sorteo.inscritos} de ${sorteo.limite_participantes} cupos`}
+              </span>
+              <span className={sorteo.cupo_lleno ? 'text-muted' : casiLleno ? 'font-bold text-gold' : 'text-muted'}>
+                {pct}%
+              </span>
+            </div>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-surface2">
+              <div
+                className={[
+                  'h-full rounded-full transition-all duration-500',
+                  sorteo.cupo_lleno ? 'bg-muted/40' : casiLleno ? 'bg-gold animate-pulse' : 'bg-gold/60',
+                ].join(' ')}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {sorteo.cupo_lleno ? (
+          <div className="mt-auto w-full border border-muted/20 py-2.5 text-center text-xs font-bold uppercase tracking-widest text-muted">
+            Sin cupos disponibles
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onParticipate}
+            className="mt-auto w-full bg-danger py-2.5 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-danger-dark"
+          >
+            Participar
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Gradient fallback when sorteo has no image ─────────────────────────── */
+function SorteoGradientBg({ tipo, nombre }) {
+  const [from, to] = TIPO_GRADIENT[tipo] ?? TIPO_GRADIENT.sorteo
+  return (
+    <div
+      className="flex h-full w-full items-center justify-center"
+      style={{ background: `linear-gradient(135deg, ${from} 0%, ${to} 100%)` }}
+    >
+      <span
+        className="select-none font-display text-5xl tracking-[0.15em]"
+        style={{ color: 'rgba(212,175,55,0.12)' }}
+      >
+        {TIPO_LABEL[tipo] ?? 'SORTEO'}
+      </span>
+    </div>
+  )
+}
+
+/* ─── Countdown display ──────────────────────────────────────────────────── */
+function CountdownDisplay({ countdown, centered }) {
+  return (
+    <div className={centered ? 'text-center' : ''}>
+      <p className="mb-4 text-[10px] uppercase tracking-[0.25em] text-muted">Próximo sorteo en</p>
+      <style>{`
+        @keyframes flip-in {
+          0%   { transform: rotateX(90deg); opacity: 0; }
+          100% { transform: rotateX(0deg);  opacity: 1; }
+        }
+        .flip-digit { animation: flip-in 0.3s ease-out; }
+      `}</style>
+      <div className={`inline-flex items-center gap-1.5 md:gap-2 ${centered ? '' : ''}`}>
+        {[
+          { v: countdown.days,    l: 'días' },
+          { v: countdown.hours,   l: 'horas' },
+          { v: countdown.minutes, l: 'min' },
+          { v: countdown.seconds, l: 'seg' },
+        ].map(({ v, l }, i) => (
+          <div key={l} className="flex items-center gap-1.5 md:gap-2">
+            <div
+              className="flex flex-col items-center border border-gold/30 bg-surface2 px-2.5 py-2 md:px-4 md:py-3"
+              style={{ perspective: '400px' }}
+            >
+              <span
+                key={v}
+                className="flip-digit font-display text-4xl leading-none text-gold md:text-5xl"
+                style={{ display: 'inline-block', transformOrigin: 'center' }}
+              >
+                {String(v).padStart(2, '0')}
+              </span>
+              <span className="mt-1 text-[9px] uppercase tracking-widest text-muted">{l}</span>
+            </div>
+            {i < 3 && <span className="font-display text-2xl text-gold/50 md:text-3xl">:</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Aurora orb ─────────────────────────────────────────────────────────── */
 function AuroraOrb({ color, width, height, top, left, right, bottom, keyframes, duration = 14, delay = 0 }) {
   return (
     <motion.div
@@ -198,7 +521,7 @@ function AuroraOrb({ color, width, height, top, left, right, bottom, keyframes, 
   )
 }
 
-/* ── Stream ── */
+/* ─── Stream ─────────────────────────────────────────────────────────────── */
 function StreamSection({ config }) {
   const { estado_stream, url_stream_live, url_stream_grabado, nombre_negocio } = config
   if (!estado_stream || estado_stream === 'proximamente') return null
@@ -297,118 +620,7 @@ function IconFacebook({ className }) {
   )
 }
 
-/* ── Sorteos activos ── */
-function SorteosSection({ sorteos }) {
-  const router = useRouter()
-  return (
-    <section id="sorteos" className="relative overflow-hidden px-4 py-16 md:py-24">
-      <AuroraOrb color="rgba(212,175,55,0.11)" width="50%" height="100%" top="-30%" left="-8%"
-        keyframes={{ x: [0, 18, -12, 0], y: [0, -20, 30, 0], scale: [1, 1.06, 0.96, 1] }} duration={18} />
-      <AuroraOrb color="rgba(184,150,12,0.08)" width="40%" height="80%" bottom="-20%" right="-5%"
-        keyframes={{ x: [0, -22, 14, 0], y: [0, 32, -18, 0], scale: [1, 0.93, 1.04, 1] }} duration={14} delay={-7} />
-      <div className="relative mx-auto max-w-5xl">
-        <h2 className="mb-10 border-l-4 border-gold pl-5 font-display text-5xl text-cream">SORTEOS ACTIVOS</h2>
-        <motion.div
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
-          initial="hidden" whileInView="visible" viewport={{ once: true }}
-        >
-          {sorteos.map(s => (
-            <motion.div
-              key={s.id}
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } } }}
-              whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            >
-              <SorteoCard sorteo={s} onParticipate={() => router.push(`/sorteos/${s.id}`)} />
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-    </section>
-  )
-}
-
-function SorteoCard({ sorteo, onParticipate }) {
-  const diasRestantes = Math.max(0, Math.ceil((new Date(sorteo.fecha_sorteo) - Date.now()) / 86_400_000))
-  const barPct = Math.min(100, Math.round((diasRestantes / 30) * 100))
-  const barColor = diasRestantes <= 3 ? 'bg-danger' : diasRestantes <= 7 ? 'bg-gold' : 'bg-success'
-
-  return (
-    <div className="flex h-full flex-col border border-gold/20 bg-surface transition-colors hover:border-gold/60">
-      <div className="flex items-center justify-between gap-2 border-b border-gold/10 bg-surface2 px-4 py-3">
-        <span className="font-display text-xl tracking-widest text-gold">
-          {TIPO_LABEL[sorteo.tipo] ?? sorteo.tipo.toUpperCase()}
-        </span>
-        <span className="bg-gold px-2 py-0.5 text-[10px] font-bold uppercase text-bg">
-          S/ {Number(sorteo.precio_participacion).toFixed(2)}
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col p-4">
-        <h3 className="mb-1 text-sm font-semibold text-cream">{sorteo.nombre}</h3>
-        <div className="mb-4">
-          <p className="text-xs text-muted">
-            {sorteo.fecha_sorteo_fmt}
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface2">
-              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${barPct}%` }} />
-            </div>
-            <span className={`text-[10px] font-bold ${diasRestantes <= 3 ? 'text-danger' : 'text-muted'}`}>
-              {diasRestantes === 0 ? '¡Hoy!' : `${diasRestantes}d`}
-            </span>
-          </div>
-        </div>
-
-        {sorteo.premios?.length > 0 && (
-          <ul className="mb-5 flex-1 space-y-2">
-            {sorteo.premios.slice(0, 4).map(p => (
-              <li key={p.id} className="flex items-baseline gap-2 text-xs">
-                <span className="shrink-0 text-gold">●</span>
-                <span className="text-content">{p.nombre}</span>
-                {p.monto != null
-                  ? <span className="ml-auto shrink-0 font-bold text-gold">S/ {Number(p.monto).toFixed(2)}</span>
-                  : p.descripcion_premio
-                    ? <span className="ml-auto shrink-0 text-muted">{p.descripcion_premio}</span>
-                    : null
-                }
-              </li>
-            ))}
-            {sorteo.premios.length > 4 && (
-              <li className="text-[11px] text-muted">+{sorteo.premios.length - 4} premios más</li>
-            )}
-          </ul>
-        )}
-
-        <RippleButton onClick={onParticipate} className="mt-auto w-full bg-danger py-2.5 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-danger-dark">
-          Participar
-        </RippleButton>
-      </div>
-    </div>
-  )
-}
-
-function RippleButton({ onClick, className, children }) {
-  const [ripples, setRipples] = useState([])
-  function handleClick(e) {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const id = Date.now()
-    setRipples(prev => [...prev, { id, x: e.clientX - rect.left, y: e.clientY - rect.top }])
-    setTimeout(() => setRipples(prev => prev.filter(r => r.id !== id)), 600)
-    onClick?.()
-  }
-  return (
-    <button type="button" onClick={handleClick} className={`relative overflow-hidden ${className}`}>
-      {children}
-      {ripples.map(({ id, x, y }) => (
-        <span key={id} className="pointer-events-none absolute rounded-full bg-white/30"
-          style={{ left: x - 40, top: y - 40, width: 80, height: 80, animation: 'ripple-expand 0.6s ease-out forwards' }} />
-      ))}
-      <style>{`@keyframes ripple-expand { 0% { transform: scale(0); opacity: 0.5; } 100% { transform: scale(4); opacity: 0; } }`}</style>
-    </button>
-  )
-}
-
-/* ── Ganadores recientes ── */
+/* ─── Ganadores recientes ────────────────────────────────────────────────── */
 function GanadoresSection({ ganadores }) {
   return (
     <section className="relative overflow-hidden px-4 py-16 md:py-24">
@@ -448,16 +660,16 @@ function GanadoresSection({ ganadores }) {
 
 function AnimatedConfetti() {
   const particles = [
-    { x: '5%', color: '#D4AF37', r: 3, dur: 7, delay: 0 },
-    { x: '12%', color: '#C0392B', r: 2, dur: 9, delay: -3 },
-    { x: '88%', color: '#D4AF37', r: 4, dur: 8, delay: -1 },
+    { x: '5%',  color: '#D4AF37', r: 3,   dur: 7,  delay: 0 },
+    { x: '12%', color: '#C0392B', r: 2,   dur: 9,  delay: -3 },
+    { x: '88%', color: '#D4AF37', r: 4,   dur: 8,  delay: -1 },
     { x: '92%', color: '#27AE60', r: 2.5, dur: 11, delay: -5 },
-    { x: '78%', color: '#D4AF37', r: 3, dur: 6, delay: -2 },
-    { x: '20%', color: '#C0392B', r: 2, dur: 10, delay: -7 },
-    { x: '65%', color: '#27AE60', r: 3.5, dur: 8, delay: -4 },
-    { x: '45%', color: '#D4AF37', r: 2, dur: 12, delay: -6 },
-    { x: '33%', color: '#B8960C', r: 3, dur: 9, delay: -1.5 },
-    { x: '72%', color: '#C0392B', r: 2.5, dur: 7, delay: -8 },
+    { x: '78%', color: '#D4AF37', r: 3,   dur: 6,  delay: -2 },
+    { x: '20%', color: '#C0392B', r: 2,   dur: 10, delay: -7 },
+    { x: '65%', color: '#27AE60', r: 3.5, dur: 8,  delay: -4 },
+    { x: '45%', color: '#D4AF37', r: 2,   dur: 12, delay: -6 },
+    { x: '33%', color: '#B8960C', r: 3,   dur: 9,  delay: -1.5 },
+    { x: '72%', color: '#C0392B', r: 2.5, dur: 7,  delay: -8 },
   ]
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -471,7 +683,7 @@ function AnimatedConfetti() {
   )
 }
 
-/* ── Seguridad ── */
+/* ─── Seguridad ──────────────────────────────────────────────────────────── */
 function SeguridadBanner({ config }) {
   const { titular_pago: titular } = config
   if (!titular) return null
@@ -495,7 +707,7 @@ function SeguridadBanner({ config }) {
   )
 }
 
-/* ── Countdown hook ── */
+/* ─── Countdown hook ─────────────────────────────────────────────────────── */
 function calcNextDiff(fechas) {
   if (!fechas?.length) return null
   const now = Date.now()

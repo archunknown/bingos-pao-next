@@ -10,11 +10,17 @@ export default async function EditSorteoPage({ params }) {
   const supabase = createAdminClient()
   const { data: sorteo } = await supabase
     .from('sorteos')
-    .select('id, nombre, tipo, fecha_sorteo, precio_participacion, descripcion, estado')
+    .select('id, nombre, tipo, fecha_sorteo, precio_participacion, descripcion, estado, imagen_path, limite_participantes')
     .eq('id', id)
     .single()
 
   if (!sorteo) notFound()
 
-  return <SorteoForm sorteo={sorteo} />
+  let imagenUrl = null
+  if (sorteo.imagen_path) {
+    const { data: { publicUrl } } = supabase.storage.from('sorteos').getPublicUrl(sorteo.imagen_path)
+    imagenUrl = publicUrl || null
+  }
+
+  return <SorteoForm sorteo={sorteo} imagenUrl={imagenUrl} />
 }
