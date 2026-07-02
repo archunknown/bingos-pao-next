@@ -16,9 +16,16 @@ const TIPO_GRADIENT = {
 }
 
 export default function LandingClient({ config, sorteos, ganadores, fechas_sorteos }) {
+  const [lightboxUrl, setLightboxUrl] = useState(null)
+
   return (
     <>
-      <HeroSection config={config} fechas_sorteos={fechas_sorteos} sorteos={sorteos} />
+      <HeroSection
+        config={config}
+        fechas_sorteos={fechas_sorteos}
+        sorteos={sorteos}
+        onZoomImage={setLightboxUrl}
+      />
       <Divider />
       <StreamSection config={config} />
       {ganadores.length > 0 && (
@@ -29,6 +36,10 @@ export default function LandingClient({ config, sorteos, ganadores, fechas_sorte
       )}
       <Divider />
       <SeguridadBanner config={config} />
+
+      {lightboxUrl && (
+        <LightboxModal imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+      )}
     </>
   )
 }
@@ -54,7 +65,7 @@ function FadeUp({ children, className, delay }) {
 }
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
-function HeroSection({ config, fechas_sorteos, sorteos }) {
+function HeroSection({ config, fechas_sorteos, sorteos, onZoomImage }) {
   const countdown  = useCountdown(fechas_sorteos)
   const hasSorteos = sorteos.length > 0
   const router     = useRouter()
@@ -165,7 +176,7 @@ function HeroSection({ config, fechas_sorteos, sorteos }) {
             </motion.div>
 
             {/* Right: Sorteos panel */}
-            <SorteosHeroPanel sorteos={sorteos} router={router} />
+            <SorteosHeroPanel sorteos={sorteos} router={router} onZoomImage={onZoomImage} />
           </div>
         </div>
       ) : (
@@ -249,7 +260,7 @@ function HeroSection({ config, fechas_sorteos, sorteos }) {
 }
 
 /* ─── Sorteos panel (right column / mobile carousel) ────────────────────── */
-function SorteosHeroPanel({ sorteos, router }) {
+function SorteosHeroPanel({ sorteos, router, onZoomImage }) {
   return (
     <motion.div
       initial={{ opacity: 0, x: 32 }}
@@ -284,7 +295,11 @@ function SorteosHeroPanel({ sorteos, router }) {
             transition={{ duration: 0.4, ease: 'easeOut', delay: 0.35 + i * 0.08 }}
             className="snap-start shrink-0 w-[72vw] max-w-[300px] md:w-full md:max-w-none md:shrink-0"
           >
-            <HeroSorteoCard sorteo={s} onParticipate={() => router.push(`/sorteos/${s.id}`)} />
+            <HeroSorteoCard
+              sorteo={s}
+              onParticipate={() => router.push(`/sorteos/${s.id}`)}
+              onZoomImage={onZoomImage}
+            />
           </motion.div>
         ))}
 
@@ -316,7 +331,7 @@ function SorteosHeroPanel({ sorteos, router }) {
 }
 
 /* ─── Hero sorteo card ───────────────────────────────────────────────────── */
-function HeroSorteoCard({ sorteo, onParticipate }) {
+function HeroSorteoCard({ sorteo, onParticipate, onZoomImage }) {
   const diasRestantes = Math.max(0, Math.ceil((new Date(sorteo.fecha_sorteo) - Date.now()) / 86_400_000))
   const urgente      = diasRestantes <= 3 && !sorteo.cupo_lleno
   const tieneLimit   = sorteo.limite_participantes != null
@@ -331,24 +346,50 @@ function HeroSorteoCard({ sorteo, onParticipate }) {
         : 'border-gold/20 hover:border-gold/50 hover:shadow-[0_0_28px_rgba(212,175,55,0.09)]',
     ].join(' ')}>
 
-      {/* Image / gradient */}
-      <div className="relative h-32 shrink-0 overflow-hidden md:h-36">
+      {/* Image / gradient con blur back-layer */}
+      <div className="relative h-40 shrink-0 overflow-hidden md:h-44 bg-surface2/50 flex items-center justify-center">
         {sorteo.imagen_url ? (
-          <img
-            src={sorteo.imagen_url}
-            alt={sorteo.nombre}
-            className={[
-              'h-full w-full object-cover transition-transform duration-500',
-              sorteo.cupo_lleno ? 'grayscale' : 'group-hover:scale-105',
-            ].join(' ')}
-          />
+          <>
+            {/* Capa background difuminada */}
+            <img
+              src={sorteo.imagen_url}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover blur-md opacity-35 scale-110 pointer-events-none select-none"
+            />
+            {/* Capa frontal contenida */}
+            <img
+              src={sorteo.imagen_url}
+              alt={sorteo.nombre}
+              className={[
+                'relative z-10 max-h-full max-w-full object-contain transition-transform duration-500',
+                sorteo.cupo_lleno ? 'grayscale' : 'group-hover:scale-105',
+              ].join(' ')}
+            />
+            {/* Lupa overlay al hacer hover */}
+            {onZoomImage && (
+              <div
+                className="absolute inset-0 bg-black/0 hover:bg-black/35 flex items-center justify-center transition-colors duration-300 z-20 cursor-zoom-in group/img"
+                onClick={() => onZoomImage(sorteo.imagen_url)}
+              >
+                <svg
+                  className="size-8 text-white/0 group-hover/img:text-white/80 transition-all duration-300 transform scale-75 group-hover/img:scale-100"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            )}
+          </>
         ) : (
           <SorteoGradientBg tipo={sorteo.tipo} />
         )}
 
         {/* Cupo completo overlay */}
         {sorteo.cupo_lleno && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 pointer-events-none">
             <span className="border border-muted/40 bg-bg/80 px-3 py-1.5 font-display text-sm tracking-widest text-muted backdrop-blur-sm">
               CUPO COMPLETO
             </span>
@@ -356,7 +397,7 @@ function HeroSorteoCard({ sorteo, onParticipate }) {
         )}
 
         {/* Badges top */}
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-2.5">
+        <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between p-2.5 pointer-events-none">
           <span className="border border-gold/30 bg-black/65 px-2 py-0.5 backdrop-blur-sm text-[9px] font-bold uppercase tracking-widest text-gold">
             {TIPO_LABEL[sorteo.tipo] ?? sorteo.tipo.toUpperCase()}
           </span>
@@ -367,21 +408,21 @@ function HeroSorteoCard({ sorteo, onParticipate }) {
 
         {/* Ribbons bottom */}
         {urgente && (
-          <div className="absolute inset-x-0 bottom-0 bg-danger/90 px-2 py-1 text-center">
+          <div className="absolute inset-x-0 bottom-0 z-20 bg-danger/90 px-2 py-1 text-center pointer-events-none">
             <span className="text-[9px] font-bold uppercase tracking-widest text-white">
               {diasRestantes === 0 ? '¡Hoy!' : `${diasRestantes}d restantes`}
             </span>
           </div>
         )}
         {casiLleno && (
-          <div className="absolute inset-x-0 bottom-0 bg-gold/90 px-2 py-1 text-center">
+          <div className="absolute inset-x-0 bottom-0 z-20 bg-gold/90 px-2 py-1 text-center pointer-events-none">
             <span className="text-[9px] font-bold uppercase tracking-widest text-bg">
               ¡Últimos cupos!
             </span>
           </div>
         )}
         {!urgente && !casiLleno && (
-          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-surface to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 z-20 h-10 bg-gradient-to-t from-surface to-transparent pointer-events-none" />
         )}
       </div>
 
@@ -733,4 +774,44 @@ function useCountdown(fechas) {
     return () => clearInterval(id)
   }, [])
   return diff
+}
+
+/* ─── Lightbox Modal ─────────────────────────────────────────────────────── */
+function LightboxModal({ imageUrl, onClose }) {
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md transition-all duration-300"
+      style={{ backgroundColor: 'rgba(5, 5, 5, 0.85)' }}
+      onClick={onClose}
+    >
+      <div className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded border border-gold/20 shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Botón Cerrar */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 z-20 rounded-full bg-black/60 p-2 text-white/80 transition-colors hover:bg-black/90 hover:text-white"
+          aria-label="Cerrar modal"
+        >
+          <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Imagen en tamaño real/ajustada */}
+        <img
+          src={imageUrl}
+          alt="Flyer del sorteo en tamaño completo"
+          className="max-h-[90vh] max-w-[90vw] object-contain"
+        />
+      </div>
+    </div>
+  )
 }
